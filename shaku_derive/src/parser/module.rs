@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{Attribute, Error, Generics};
+use syn::{Attribute, Meta, Error, Generics, Token, punctuated::Punctuated};
 
 impl Parse for ModuleData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -22,7 +22,8 @@ impl Parse for ModuleData {
             return Err(content.error("expected `,`"));
         }
 
-        let submodules = content.parse_terminated(Submodule::parse)?;
+        let submodules: Punctuated<Submodule, Token![,]> = 
+            content.parse_terminated(Submodule::parse, Token![,])?;
 
         Ok(ModuleData {
             metadata,
@@ -113,7 +114,7 @@ where
             keyword_token: input.parse()?,
             eq_token: input.parse()?,
             bracket_token: syn::bracketed!(content in input),
-            items: content.parse_terminated(ModuleItem::parse)?,
+            items: content.parse_terminated(ModuleItem::parse,Token![,])?,
         })
     }
 }
@@ -146,7 +147,8 @@ where
 
 impl Parser<ComponentAttribute> for Attribute {
     fn parse_as(&self) -> syn::Result<ComponentAttribute> {
-        if self.path.is_ident("lazy") && self.tokens.is_empty() {
+        let path = self.meta.path();
+        if path.is_ident("lazy") && is_attribute_empty(self) {
             Ok(ComponentAttribute::Lazy)
         } else {
             Err(Error::new(self.span(), "Unknown attribute".to_string()))
@@ -158,4 +160,8 @@ impl Parser<ProviderAttribute> for Attribute {
     fn parse_as(&self) -> syn::Result<ProviderAttribute> {
         Err(Error::new(self.span(), "Providers cannot have attributes"))
     }
+}
+
+fn is_attribute_empty(attr: &Attribute) -> bool {
+    matches!(attr.meta, Meta::Path(_))
 }

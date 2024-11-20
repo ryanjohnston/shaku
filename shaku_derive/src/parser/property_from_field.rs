@@ -3,10 +3,13 @@ use crate::parser::{get_shaku_attribute, KeyValue, Parser};
 use crate::structures::service::{Property, PropertyDefault, PropertyType};
 use syn::spanned::Spanned;
 use syn::{Attribute, Error, Expr, Field, GenericArgument, Path, PathArguments, Type};
+// use syn::parse_quote;
+use quote::ToTokens;
 
 fn check_for_attr(attr_name: &str, attrs: &[Attribute]) -> bool {
     attrs.iter().any(|a| {
-        a.path.is_ident(consts::ATTR_NAME)
+        let path = &a.meta.path();
+        path.is_ident(consts::ATTR_NAME)
             && a.parse_args::<Path>()
                 .map(|p| p.is_ident(attr_name))
                 .unwrap_or(false)
@@ -25,7 +28,7 @@ impl Parser<Property> for Field {
         let doc_comment = self
             .attrs
             .iter()
-            .filter(|attr| attr.path.is_ident("doc"))
+            .filter(|attr| attr.meta.path().is_ident("doc"))
             .cloned()
             .collect();
 
@@ -49,7 +52,8 @@ impl Parser<Property> for Field {
                             } else {
                                 Err(Error::new(
                                     attr.span(),
-                                    format!("Unknown attribute: 'shaku{}'", attr.tokens),
+                                    format!("Unknown attribute: 'shaku{}'", 
+                                    attr.to_token_stream().to_string()),
                                 ))
                             }
                         }
